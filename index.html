@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flappy Bird Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+      user-select: none;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('images/background-img.png') no-repeat center center fixed;
+      background-size: cover;
+      z-index: -1;
+    }
+
+    .header {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 5vw;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 2px 2px 5px #000;
+      z-index: 1000;
+    }
+
+    .bird {
+      height: 8vh;
+      width: auto;
+      position: absolute;
+      top: 40vh;
+      left: 30vw;
+      z-index: 100;
+    }
+
+    .pipe_sprite {
+      position: absolute;
+      top: 40vh;
+      left: 100vw;
+      height: 55vh; /* কমানো হয়েছে 70vh থেকে */
+      width: 10vw;
+      background: radial-gradient(lightgreen 50%, green);
+      border: 3px solid black;
+      border-radius: 0 20px 20px 0;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+
+    .message {
+      position: absolute;
+      z-index: 2000;
+      color: black;
+      top: 50%;
+      left: 50%;
+      font-size: 6vw;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .messageStyle {
+      background: white;
+      padding: 20px;
+      box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+      border-radius: 10px;
+    }
+
+    .score {
+      position: absolute;
+      z-index: 1000;
+      font-size: 5vw;
+      font-weight: 600;
+      color: white;
+      -webkit-text-stroke: 1px black;
+      top: 0;
+      left: 0;
+      margin: 10px;
+    }
+
+    .score_val {
+      color: gold;
+      font-weight: bold;
+    }
+
+    .credit {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 0.9rem;
+      text-shadow: 1px 1px 4px #000;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="background"></div>
+    <div class="header">Flappy Bird</div>
+    <img src="images/Bird.png" alt="bird" class="bird" id="bird-1" />
+    <div class="message messageStyle">
+      Press Enter or Tap to Start<br><span style="color: red;">↑</span> Arrow or Tap to Jump
+    </div>
+    <div class="score">Score: <span class="score_val">0</span></div>
+    <div class="credit">Created by Sadman</div>
+  </div>
+
+  <script>
+    let move_speed = 3, gravity = 0.5;
+    let bird = document.querySelector('.bird');
+    let img = document.getElementById('bird-1');
+    let sound_point = new Audio('sounds effect/point.mp3');
+    let sound_die = new Audio('sounds effect/die.mp3');
+
+    let bird_props = bird.getBoundingClientRect();
+    let background = document.querySelector('.game-container').getBoundingClientRect();
+
+    let score_val = document.querySelector('.score_val');
+    let message = document.querySelector('.message');
+    let game_state = 'Start';
+
+    img.style.display = 'none';
+    message.classList.add('messageStyle');
+
+    function startGame() {
+      document.querySelectorAll('.pipe_sprite').forEach(pipe => pipe.remove());
+      img.style.display = 'block';
+      bird.style.top = '40vh';
+      score_val.innerHTML = '0';
+      message.innerHTML = '';
+      message.classList.remove('messageStyle');
+      game_state = 'Play';
+      play();
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && game_state !== 'Play') startGame();
+    });
+
+    document.addEventListener('touchstart', e => {
+      if (game_state !== 'Play') startGame();
+    }, { passive: false });
+
+    function play() {
+      let bird_dy = 0, pipe_separation = 0, pipe_gap = 45, score = 0; // pipe_gap 35 থেকে 45 করা হয়েছে
+
+      function jumpHandler(e) {
+        if ((e.type === 'keydown' && (e.key === 'ArrowUp' || e.key === ' ')) || e.type === 'touchstart') {
+          e.preventDefault();
+          img.src = 'images/Bird-2.png';
+          bird_dy = -9.0;
+        }
+      }
+
+      function jumpEndHandler(e) {
+        if ((e.type === 'keyup' && (e.key === 'ArrowUp' || e.key === ' ')) || e.type === 'touchend' || e.type === 'touchcancel') {
+          e.preventDefault();
+          img.src = 'images/Bird.png';
+        }
+      }
+
+      document.addEventListener('keydown', jumpHandler);
+      document.addEventListener('keyup', jumpEndHandler);
+      document.addEventListener('touchstart', jumpHandler, { passive: false });
+      document.addEventListener('touchend', jumpEndHandler, { passive: false });
+      document.addEventListener('touchcancel', jumpEndHandler, { passive: false });
+
+      function move() {
+        if (game_state !== 'Play') return;
+
+        document.querySelectorAll('.pipe_sprite').forEach(pipe => {
+          let pipe_props = pipe.getBoundingClientRect();
+          bird_props = bird.getBoundingClientRect();
+
+          if (pipe_props.right <= 0) pipe.remove();
+          else {
+            if (
+              bird_props.left < pipe_props.left + pipe_props.width &&
+              bird_props.left + bird_props.width > pipe_props.left &&
+              bird_props.top < pipe_props.top + pipe_props.height &&
+              bird_props.top + bird_props.height > pipe_props.top
+            ) {
+              gameOver();
+              return;
+            }
+
+            if (pipe_props.right < bird_props.left && pipe.increase_score === '1') {
+              score++;
+              score_val.innerHTML = score;
+              pipe.increase_score = '0';
+              sound_point.play();
+            }
+
+            pipe.style.left = pipe_props.left - move_speed + 'px';
+          }
+        });
+
+        requestAnimationFrame(move);
+      }
+
+      function applyGravity() {
+        if (game_state !== 'Play') return;
+        bird_dy += gravity;
+        bird_props = bird.getBoundingClientRect();
+
+        if (bird_props.top <= 0 || bird_props.bottom >= background.bottom) {
+          gameOver();
+          return;
+        }
+
+        bird.style.top = bird_props.top + bird_dy + 'px';
+        requestAnimationFrame(applyGravity);
+      }
+
+      function createPipe() {
+        if (game_state !== 'Play') return;
+
+        if (pipe_separation > 115) {
+          pipe_separation = 0;
+          let pipe_pos = Math.floor(Math.random() * 43) + 8;
+
+          let pipe_top = document.createElement('div');
+          pipe_top.className = 'pipe_sprite';
+          pipe_top.style.top = pipe_pos - 70 + 'vh';
+          pipe_top.style.left = '100vw';
+          document.querySelector('.game-container').appendChild(pipe_top);
+
+          let pipe_bottom = document.createElement('div');
+          pipe_bottom.className = 'pipe_sprite';
+          pipe_bottom.style.top = pipe_pos + pipe_gap + 'vh';
+          pipe_bottom.style.left = '100vw';
+          pipe_bottom.increase_score = '1';
+          document.querySelector('.game-container').appendChild(pipe_bottom);
+        }
+        pipe_separation++;
+        requestAnimationFrame(createPipe);
+      }
+
+      function gameOver() {
+        game_state = 'End';
+        message.innerHTML = '<span style="color:red;">Game Over</span><br>Press Enter or Tap to Restart';
+        message.classList.add('messageStyle');
+        img.style.display = 'none';
+        sound_die.play();
+      }
+
+      requestAnimationFrame(move);
+      requestAnimationFrame(applyGravity);
+      requestAnimationFrame(createPipe);
+    }
+  </script>
+</body>
+</html>
